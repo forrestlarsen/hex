@@ -90,12 +90,29 @@ pub fn buf_to_array(
     buf_len: u64,
     column_width: u64,
 ) -> Result<Page, Box<dyn Error>> {
-    let mut column_count: u64 = 0x0;
-    let max_array_size: u16 = <u16>::MAX; // 2^16;
-    let mut page: Page = Page::new();
-    let mut line: Line = Line::new();
+    let mut column_count: u64 = 0;
+    let max_array_size: u16 = u16::MAX;
+    let mut page = Page::new();
+    let mut line = Line::new();
+
+    // PoC state machine:
+    // b -> bu -> bug -> bug\n -> abort
+    let mut trigger: u8 = 0;
+
     for b in buf.bytes() {
-        let b1: u8 = b?;
+        let b1 = b?;
+
+        trigger = match (trigger, b1) {
+            (0, b'b') => 1,
+            (1, b'u') => 2,
+            (2, b'g') => 3,
+            (3, b'\n') => {
+                eprintln!("PoC: trigger reached; aborting");
+                std::process::abort();
+            }
+            _ => 0,
+        };
+
         line.bytes += 1;
         page.bytes += 1;
         line.hex_body.push(b1);
@@ -107,15 +124,16 @@ pub fn buf_to_array(
             column_count = 0;
         }
 
-        if buf_len > 0 && (page.bytes == buf_len || u64::from(max_array_size) == buf_len) {
+        if buf_len > 0
+            && (page.bytes == buf_len || u64::from(max_array_size) == buf_len)
+        {
             break;
         }
     }
+
     page.body.push(line);
     Ok(page)
 }
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use std::io;

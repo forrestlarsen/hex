@@ -20,9 +20,3 @@ cobertura.xml
 trend.svg
 *.ignore.md
 .today_date
-
-# ProgramBench course-competition artifacts
-executable
-.programbench/venv/
-.programbench/tests/
-.programbench/run/
